@@ -1,0 +1,53 @@
+import models
+import schemas
+from facades.genre_facade import genre_facade
+from users import get_current_user
+from fastapi import HTTPException, status, Depends, APIRouter
+from facades.artist_facade import artist_facade
+from facades.album_facade import album_facade
+
+router = APIRouter(
+    prefix="/admin",
+    tags=["Admin"],
+)
+
+HTTP_EXCEPTIONS_FORBIDDEN = HTTPException(
+    status_code=status.HTTP_403_FORBIDDEN,
+    detail="Not enough permissions",
+)
+
+
+@router.post("/artists/", response_model=schemas.Artist)
+async def create_artist(
+        artist_data: schemas.ArtistCreate,
+        current_user: models.User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        raise HTTP_EXCEPTIONS_FORBIDDEN
+
+    db_artist = await artist_facade.create_artist(artist_data)
+    return db_artist
+
+
+@router.post("/albums/", response_model=schemas.Album)
+async def create_album(
+        album_data: schemas.AlbumCreate,
+        current_user: models.User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        raise HTTP_EXCEPTIONS_FORBIDDEN
+
+    db_albums = await album_facade.create_album(album_data)
+    return db_albums
+
+
+@router.post("/genres/", response_model=schemas.Genre)
+async def create_album(
+        genre_data: schemas.GenreCreate,
+        current_user: models.User = Depends(get_current_user)
+):
+    if not current_user.is_admin:
+        raise HTTP_EXCEPTIONS_FORBIDDEN
+
+    db_genre = await genre_facade.create_genre(genre_data)
+    return db_genre
