@@ -1,3 +1,5 @@
+from typing import List
+
 from pydantic import BaseModel
 
 
@@ -72,6 +74,29 @@ class GenreCreate(GenreBase):
 
 
 class Genre(GenreBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class SongBase(BaseModel):
+    title: str
+    text: str
+    album_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class SongCreate(SongBase):
+    genres: List[int]
+
+    class Config:
+        from_attributes = True
+
+
+class Song(SongBase):
     id: int
 
     class Config:
