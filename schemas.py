@@ -101,3 +101,17 @@ class Song(SongBase):
 
     class Config:
         from_attributes = True
+
+
+class FavoriteSongBase(BaseModel):
+    song_id: int
+    user_id: int
+
+
+class FavoriteSongCreate(BaseModel):
+    song_id: int
+
+
+class FavoriteSong(FavoriteSongBase):
+    class Config:
+        from_attributes = True
