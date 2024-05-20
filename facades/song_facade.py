@@ -4,9 +4,13 @@ from facades.base_facade import BaseFacade
 
 
 class SongFacade(BaseFacade):
-    async def create_song(self, song_data: schemas.SongCreate) -> models.Song:
-        db_song = models.Song(title=song_data.title, album_id=song_data.album_id, text=song_data.text,
-                              file_path=song_data.file_path)
+    async def create_song(self, song_data: schemas.SongCreate, file_path) -> models.Song:
+        db_song = models.Song(
+            title=song_data.title,
+            album_id=song_data.album_id,
+            text=song_data.text,
+            file_path=file_path
+        )
         self.db.add(db_song)
         await self.db.commit()
         await self.db.refresh(db_song)
