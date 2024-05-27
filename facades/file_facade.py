@@ -1,30 +1,70 @@
 import os
-from fastapi import UploadFile, HTTPException
-import aiofiles
+import aiohttp
+from aiobotocore.session import get_session
+from dotenv import load_dotenv
+from fastapi import UploadFile, HTTPException, status
+
+load_dotenv()
 
 
 class FileManager:
-    def __init__(self, base_directory: str):
-        self.base_directory = base_directory
-        os.makedirs(self.base_directory, exist_ok=True)
+    def __init__(self):
+        self.bucket_name = os.getenv('BUCKET_NAME')
+        self.aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
+        self.aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
+        self.endpoint_url = os.getenv('ENDPOINT_URL')
+        self.region_name = os.getenv('REGION_NAME')
 
-    async def save_file(self, file: UploadFile, file_path: str) -> None:
-        try:
-            async with aiofiles.open(file_path, 'wb') as out_file:
-                while content := await file.read(1024):  # Читаем файл порциями
-                    await out_file.write(content)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
+    async def save_file(self, file: UploadFile, filename: str) -> None:
+        session = get_session()
+        async with session.create_client(
+                's3',
+                region_name=self.region_name,
+                endpoint_url=self.endpoint_url,
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key
+        ) as client:
+            try:
+                data = await file.read()
+                await client.put_object(Bucket=self.bucket_name, Key=filename, Body=data)
+            except Exception as e:
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Could not save file')
 
-    async def get_file(self, file_path: str) -> bytes:
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail="File not found")
-        try:
-            async with aiofiles.open(file_path, 'rb') as file:
-                return await file.read()
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Could not read file: {str(e)}")
+    async def get_file(self, file_path: str):
+        session = get_session()
+        async with session.create_client(
+                's3',
+                region_name=self.region_name,
+                endpoint_url=self.endpoint_url,
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key
+        ) as client:
+            try:
+                response = await client.get_object(Bucket=self.bucket_name, Key=file_path)
+                async with response['Body'] as stream:
+                    data = await stream.read()
+                    return data
+            except client.exceptions.NoSuchKey as e:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='File not found')
+            except Exception as e:
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Could not get file')
+
+    async def delete_file(self, file_path: str):
+        session = get_session()
+        async with session.create_client(
+                's3',
+                region_name=self.region_name,
+                endpoint_url=self.endpoint_url,
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key
+        ) as client:
+            try:
+                await client.delete_object(Bucket=self.bucket_name, Key=file_path)
+
+            except client.exceptions.NoSuchKey as e:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='File not found')
+            except Exception as e:
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Could not get file')
 
 
-# Инициализация фасада с базовой директорией для хранения файлов
-FILE_MANAGER = FileManager(base_directory="static/songs")
+FILE_MANAGER = FileManager()
